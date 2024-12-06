@@ -1,44 +1,55 @@
-#define LDR_PIN A0  // Pin ADC del ESP8266
-#define THRESHOLD 500  // Umbral para distinguir entre 1 (luz presente) y 0 (luz ausente)
+#define LDR_PIN A0        // Pin ADC del ESP8266
+#define THRESHOLD 500     // Umbral para distinguir entre 1 (luz presente) y 0 (luz ausente)
+#define BIT_DURATION 500  // Duración esperada de cada bit en milisegundos
+
+// Arreglo con las 26 letras del abecedario
+const char alphabet[26] = { 
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 
+  'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 
+  'U', 'V', 'W', 'X', 'Y', 'Z' 
+};
 
 void setup() {
   Serial.begin(115200);
 }
-
-
-
 
 void loop() {
   Serial.println("Esperando bit de inicio...");
   
   // Esperar hasta detectar el bit de inicio (1)
   while (analogRead(LDR_PIN) < THRESHOLD) {
-    Serial.println(analogRead(LDR_PIN));
-    delay(1);  // Esperar mientras no haya suficiente luz
+    delay(1); // Esperar mientras no haya suficiente luz
   }
-  
+
   Serial.println("Bit de inicio detectado. Recibiendo bits...");
-  delay(100);  // Pausa para estabilizar después del bit de inicio
-  
+  delay(BIT_DURATION+BIT_DURATION/2); // Ajuste inicial para estabilizar lectura
+
   // Leer los siguientes 5 bits
   String bits = "";
   for (int i = 0; i < 5; i++) {
     int ldrValue = analogRead(LDR_PIN);
-    int bit = (ldrValue >= THRESHOLD) ? 1 : 0;  // Comparar con el umbral
+    int bit = (ldrValue >= THRESHOLD) ? 1 : 0; // Comparar con el umbral
     bits += String(bit);
     Serial.println("Bit recibido: " + String(bit));
-    delay(500);  // Ajusta según la duración de cada bit
+    delay(BIT_DURATION); // Esperar el tiempo del siguiente bit
   }
-  
-  // Convertir los bits a una letra
+
+  // Convertir los bits a un índice y obtener la letra
   char letter = bitsToChar(bits);
-  Serial.println("Letra recibida: " + String(letter));
-  
-  delay(1000);  // Esperar antes de recibir un nuevo mensaje
+  if (letter != '\0') {
+    Serial.println("Letra recibida: " + String(letter));
+  } else {
+    Serial.println("Bits inválidos: " + bits);
+  }
+
+  delay(1000); // Pausa antes de procesar un nuevo mensaje
 }
 
-// Función para convertir una cadena de bits a un carácter ASCII
 char bitsToChar(String bits) {
-  int value = strtol(bits.c_str(), NULL, 2);  // Convertir bits binarios a decimal
-  return char(value + 64);  // Sumar 64 para mapear a letras mayúsculas (A=65 en ASCII)
+  if (bits.length() != 5) return '\0'; // Validar longitud de bits
+  int index = strtol(bits.c_str(), NULL, 2) - 1; // Convertir bits binarios a índice (0-25)
+  
+  // Validar índice dentro del rango del alfabeto
+  if (index < 0 || index >= 26) return '\0'; 
+  return alphabet[index]; // Retornar la letra correspondiente
 }
